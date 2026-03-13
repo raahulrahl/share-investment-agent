@@ -120,7 +120,7 @@ debate_quality = {
 ```python
 decision_outcomes = {
     "bullish_wins": "Bullish arguments significantly stronger than bearish concerns",
-    "bearish_wins": "Bearish risk concerns significantly outweigh bullish opportunities", 
+    "bearish_wins": "Bearish risk concerns significantly outweigh bullish opportunities",
     "balanced": "Strong arguments on both sides with balanced risk/reward",
     "uncertain": "Insufficient evidence or excessive uncertainty for clear decision",
     "hold_neutral": "Neither bullish nor bearish case is compelling enough for action"

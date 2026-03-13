@@ -30,7 +30,7 @@ The Market Data Analysis Specialist is responsible for collecting and preprocess
 {
     "date": "YYYY-MM-DD",
     "open": float,
-    "high": float, 
+    "high": float,
     "low": float,
     "close": float,
     "volume": int,

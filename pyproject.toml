@@ -111,6 +111,11 @@ ignore = [
     "E501",
     # DoNotAssignLambda
     "E731",
+    # Allow try-except patterns for error handling
+    "TRY300",
+    "TRY301",
+    "TRY003",
+    "TRY401",
 ]
 
 [tool.ruff.lint.per-file-ignores]

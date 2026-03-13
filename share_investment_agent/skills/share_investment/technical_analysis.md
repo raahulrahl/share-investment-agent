@@ -93,7 +93,7 @@ signals = {
     "volume_surge": Volume > Average_Volume * 1.5
 }
 
-# Bearish Signals  
+# Bearish Signals
 signals = {
     "macd_bearish_crossover": MACD_line < Signal_line,
     "rsi_overbought": RSI > 70,
@@ -195,7 +195,7 @@ signals = {
 - Momentum plays
 - Buy the dip strategies
 
-### Bear Markets  
+### Bear Markets
 - Short-selling opportunities
 - Counter-trend rallies
 - Volatility trading

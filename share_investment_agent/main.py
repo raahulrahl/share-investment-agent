@@ -82,23 +82,24 @@ class ShareInvestmentAgent:
         # Extract investment request from messages
         investment_request = ""
         ticker = ""
-        
+
         for message in messages:
             if message.get("role") == "user":
                 content = message.get("content", "")
                 investment_request = content
-                
+
                 # Extract ticker from message (enhanced extraction for various formats)
                 import re
+
                 # Look for 6-digit numbers in various formats: (000001), 000001, etc.
                 ticker_patterns = [
-                    r'\((\d{6})\)',  # (000001)
-                    r'\b(\d{6})\b',  # 000001
-                    r'股票代码[：:]\s*(\d{6})',  # 股票代码：000001
-                    r'ticker[:\s]+(\d{6})',  # ticker: 000001
-                    r'stock[:\s]+(\d{6})',  # stock: 000001
+                    r"\((\d{6})\)",  # (000001)
+                    r"\b(\d{6})\b",  # 000001
+                    r"股票代码[:]\s*(\d{6})",  # 股票代码:000001
+                    r"ticker[:\s]+(\d{6})",  # ticker: 000001
+                    r"stock[:\s]+(\d{6})",  # stock: 000001
                 ]
-                
+
                 for pattern in ticker_patterns:
                     match = re.search(pattern, content, re.IGNORECASE)
                     if match:
@@ -112,13 +113,10 @@ class ShareInvestmentAgent:
         try:
             # Run the share investment analysis pipeline
             final_analysis = await run_share_investment_analysis(
-                ticker=ticker,
-                analysis_request=investment_request,
-                model_name=self.model_name
+                ticker=ticker, analysis_request=investment_request, model_name=self.model_name
             )
 
             return final_analysis
-
         except Exception as e:
             error_msg = f"Error during share investment analysis: {e!s}"
             print(f"❌ {error_msg}")
@@ -174,6 +172,11 @@ async def handler(messages: list[dict[str, str]]) -> Any:
     # Run the async agent
     result = await run_agent(messages)
     return result
+
+
+async def initialize_all() -> None:
+    """Initialize all agent components - alias for initialize_agent for test compatibility."""
+    await initialize_agent()
 
 
 async def cleanup() -> None:

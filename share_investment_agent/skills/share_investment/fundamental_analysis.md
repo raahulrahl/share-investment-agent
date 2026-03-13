@@ -30,7 +30,7 @@ The Fundamental Analysis Specialist focuses on evaluating a company's intrinsic 
 # Return on Equity (ROE)
 ROE = Net_Income / Shareholder_Equity
 
-# Return on Assets (ROA)  
+# Return on Assets (ROA)
 ROA = Net_Income / Total_Assets
 
 # Net Profit Margin

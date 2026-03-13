@@ -51,16 +51,16 @@ The Sentiment Analysis Specialist focuses on analyzing market sentiment, news co
 def analyze_sentiment(text):
     # Text preprocessing
     cleaned_text = preprocess_text(text)
-    
+
     # Feature extraction
     features = extract_features(cleaned_text)
-    
+
     # Sentiment classification
     sentiment_score = classify_sentiment(features)
-    
+
     # Intensity calculation
     intensity = calculate_intensity(sentiment_score, features)
-    
+
     return {
         "sentiment": sentiment_score,  # -1 to 1 scale
         "intensity": intensity,        # 0 to 1 scale
@@ -108,14 +108,14 @@ sentiment_ranges = {
 def calculate_composite_sentiment(news_items):
     total_weight = 0
     weighted_sentiment = 0
-    
+
     for news in news_items:
         weight = calculate_weight(news)
         sentiment = news["sentiment_score"]
-        
+
         weighted_sentiment += sentiment * weight
         total_weight += weight
-    
+
     return weighted_sentiment / total_weight if total_weight > 0 else 0
 ```
 
@@ -174,23 +174,23 @@ fear_greed_components = {
 # Signal Generation Logic
 def generate_sentiment_signals(composite_sentiment, sentiment_trend):
     signals = []
-    
+
     # Bullish signals
     if composite_sentiment > 0.5 and sentiment_trend > 0:
         signals.append("strong_bullish_sentiment")
     elif composite_sentiment > 0.2:
         signals.append("moderate_bullish_sentiment")
-    
+
     # Bearish signals
     if composite_sentiment < -0.5 and sentiment_trend < 0:
         signals.append("strong_bearish_sentiment")
     elif composite_sentiment < -0.2:
         signals.append("moderate_bearish_sentiment")
-    
+
     # Contrarian signals
     if abs(composite_sentiment) > 0.8:
         signals.append("extreme_sentiment_warning")
-    
+
     return signals
 ```
 

@@ -31,24 +31,24 @@ The Valuation Analysis Specialist specializes in determining the intrinsic value
 def calculate_dcf(forecast_period, terminal_growth, discount_rate):
     # Free Cash Flow Projection
     fcf_projections = project_free_cash_flow(forecast_period)
-    
+
     # Discount Factor Calculation
     discount_factors = [1 / (1 + discount_rate) ** (n + 1) for n in range(forecast_period)]
-    
+
     # Present Value of FCF
     pv_fcf = sum(fcf * df for fcf, df in zip(fcf_projections, discount_factors))
-    
+
     # Terminal Value Calculation
     terminal_fcf = fcf_projections[-1] * (1 + terminal_growth)
     terminal_value = terminal_fcf / (discount_rate - terminal_growth)
     pv_terminal = terminal_value / (1 + discount_rate) ** forecast_period
-    
+
     # Enterprise Value
     enterprise_value = pv_fcf + pv_terminal
-    
+
     # Equity Value
     equity_value = enterprise_value - net_debt + cash
-    
+
     return {
         "enterprise_value": enterprise_value,
         "equity_value": equity_value,
@@ -62,24 +62,24 @@ def calculate_dcf(forecast_period, terminal_growth, discount_rate):
 def calculate_ddm(dividend_per_share, required_return, dividend_growth_rate):
     if required_return <= dividend_growth_rate:
         raise ValueError("Required return must exceed dividend growth rate")
-    
+
     intrinsic_value = dividend_per_share / (required_return - dividend_growth_rate)
     return intrinsic_value
 
 # Multi-Stage DDM
 def calculate_multistage_ddm(dividends, growth_rates, required_return):
     present_values = []
-    
+
     # High growth phase
     for i, dividend in enumerate(dividends[:len(growth_rates)]):
         pv = dividend / ((1 + required_return) ** (i + 1))
         present_values.append(pv)
-    
+
     # Terminal value
     terminal_dividend = dividends[-1] * (1 + growth_rates[-1])
     terminal_value = terminal_dividend / (required_return - growth_rates[-1])
     pv_terminal = terminal_value / ((1 + required_return) ** len(dividends))
-    
+
     return sum(present_values) + pv_terminal
 ```
 
@@ -94,13 +94,13 @@ def calculate_comparable_multiples(ticker, peer_group):
         "EV/EBITDA": calculate_ev_ebitda_ratio,
         "EV/Revenue": calculate_ev_revenue_ratio
     }
-    
+
     peer_multiples = {}
     for peer in peer_group:
         peer_multiples[peer] = {}
         for multiple_name, calc_func in multiples.items():
             peer_multiples[peer][multiple_name] = calc_func(peer)
-    
+
     # Calculate average multiples
     industry_multiples = {}
     for multiple_name in multiples.keys():
@@ -111,7 +111,7 @@ def calculate_comparable_multiples(ticker, peer_group):
             "min": min(values),
             "max": max(values)
         }
-    
+
     return industry_multiples
 ```
 
@@ -122,7 +122,7 @@ def calculate_comparable_multiples(ticker, peer_group):
 # Revenue Growth Models
 def forecast_revenue(current_revenue, growth_assumptions):
     forecasts = []
-    
+
     for year, growth_rate in enumerate(growth_assumptions, 1):
         if isinstance(growth_rate, float):
             # Constant growth rate
@@ -132,12 +132,12 @@ def forecast_revenue(current_revenue, growth_assumptions):
             base_growth = growth_rate["base_rate"]
             market_factor = growth_rate.get("market_factor", 1.0)
             company_factor = growth_rate.get("company_factor", 1.0)
-            
+
             next_year_revenue = current_revenue * (1 + base_growth * market_factor * company_factor)
-        
+
         forecasts.append(next_year_revenue)
         current_revenue = next_year_revenue
-    
+
     return forecasts
 ```
 
@@ -146,26 +146,26 @@ def forecast_revenue(current_revenue, growth_assumptions):
 # Margin Forecasting
 def forecast_margins(historical_margins, industry_trends, company_strategy):
     forecasts = []
-    
+
     for year in range(1, forecast_period + 1):
         # Historical trend analysis
         historical_trend = calculate_trend(historical_margins)
-        
+
         # Industry benchmark comparison
         industry_margin = industry_trends[year]
-        
+
         # Company-specific factors
         strategy_impact = company_strategy.get(year, 0)
-        
+
         # Combined forecast
         forecast_margin = (
             historical_margins[-1] * (1 + historical_trend) +
             industry_margin * 0.3 +
             strategy_impact
         )
-        
+
         forecasts.append(max(0, min(1, forecast_margin)))
-    
+
     return forecasts
 ```
 
@@ -177,20 +177,20 @@ def calculate_free_cash_flow(revenue, margins, capex_intensity, working_capital)
     ebitda = revenue * margins["ebitda_margin"]
     depreciation = revenue * margins["depreciation_margin"]
     ebit = ebitda - depreciation
-    
+
     # Tax calculation
     tax_expense = ebit * tax_rate
     nopat = ebit - tax_expense
-    
+
     # Working capital changes
     working_capital_change = revenue * working_capital
-    
+
     # Capital expenditures
     capital_expenditures = revenue * capex_intensity
-    
+
     # Free Cash Flow
     free_cash_flow = nopat + depreciation - capital_expenditures - working_capital_change
-    
+
     return free_cash_flow
 ```
 
@@ -202,20 +202,20 @@ def calculate_free_cash_flow(revenue, margins, capex_intensity, working_capital)
 def calculate_wacc(equity_risk_premium, market_cap, debt, risk_free_rate, beta):
     # Cost of Equity (CAPM)
     cost_of_equity = risk_free_rate + beta * equity_risk_premium
-    
+
     # Cost of Debt
     interest_coverage = ebit / interest_expense
     credit_spread = get_credit_spread(interest_coverage)
     cost_of_debt = risk_free_rate + credit_spread
-    
+
     # Capital Structure
     total_capital = market_cap + debt
     equity_weight = market_cap / total_capital
     debt_weight = debt / total_capital
-    
+
     # WACC Calculation
     wacc = (cost_of_equity * equity_weight + cost_of_debt * debt_weight * (1 - tax_rate))
-    
+
     return wacc
 ```
 
@@ -225,15 +225,15 @@ def calculate_wacc(equity_risk_premium, market_cap, debt, risk_free_rate, beta):
 def calculate_country_risk_premium(country_rating, sovereign_spread):
     # Base country risk premium
     base_premium = sovereign_spread
-    
+
     # Rating adjustment
     rating_adjustments = {
         "AAA": 0.0, "AA": 0.1, "A": 0.3, "BBB": 0.6,
         "BB": 1.2, "B": 2.0, "CCC": 3.5, "CC": 5.0
     }
-    
+
     rating_adjustment = rating_adjustments.get(country_rating, 2.5)
-    
+
     return base_premium + rating_adjustment
 ```
 
@@ -264,27 +264,27 @@ def calculate_country_risk_premium(country_rating, sovereign_spread):
 # Sensitivity Matrix
 def create_sensitivity_matrix(base_assumptions, ranges):
     sensitivity_results = {}
-    
+
     for assumption, range_values in ranges.items():
         sensitivity_results[assumption] = {}
-        
+
         for value in range_values:
             # Create modified assumptions
             modified_assumptions = base_assumptions.copy()
             modified_assumptions[assumption] = value
-            
+
             # Calculate valuation with modified assumptions
             valuation_result = calculate_dcf(**modified_assumptions)
-            
+
             # Calculate percentage change from base
             base_value = base_assumptions["base_valuation"]
             percentage_change = (valuation_result - base_value) / base_value
-            
+
             sensitivity_results[assumption][value] = {
                 "valuation": valuation_result,
                 "percentage_change": percentage_change
             }
-    
+
     return sensitivity_results
 ```
 
@@ -293,17 +293,17 @@ def create_sensitivity_matrix(base_assumptions, ranges):
 # Probabilistic Valuation
 def monte_carlo_valuation(num_simulations, assumption_distributions):
     valuations = []
-    
+
     for _ in range(num_simulations):
         # Sample from distributions
         sampled_assumptions = {}
         for assumption, distribution in assumption_distributions.items():
             sampled_assumptions[assumption] = sample_from_distribution(distribution)
-        
+
         # Calculate valuation
         valuation = calculate_dcf(**sampled_assumptions)
         valuations.append(valuation)
-    
+
     # Statistical analysis
     results = {
         "mean": sum(valuations) / len(valuations),
@@ -316,7 +316,7 @@ def monte_carlo_valuation(num_simulations, assumption_distributions):
             "90th": sorted(valuations)[int(0.9 * len(valuations))]
         }
     }
-    
+
     return results
 ```
 
@@ -328,14 +328,14 @@ def monte_carlo_valuation(num_simulations, assumption_distributions):
 def calibrate_dcf_to_market(dcf_value, current_price, market_multiples):
     # Calculate implied multiple
     implied_multiple = current_price / relevant_metric
-    
+
     # Compare with market multiples
     market_comparison = {
         "vs_mean": (implied_multiple - market_multiples["mean"]) / market_multiples["mean"],
         "vs_median": (implied_multiple - market_multiples["median"]) / market_multiples["median"],
         "percentile": calculate_percentile(implied_multiple, market_multiples["distribution"])
     }
-    
+
     # Adjustment factors
     if market_comparison["vs_mean"] > 0.2:
         adjustment_factor = 0.9  # DCF seems too optimistic
@@ -343,7 +343,7 @@ def calibrate_dcf_to_market(dcf_value, current_price, market_multiples):
         adjustment_factor = 1.1  # DCF seems too pessimistic
     else:
         adjustment_factor = 1.0  # DCF seems reasonable
-    
+
     return dcf_value * adjustment_factor
 ```
 

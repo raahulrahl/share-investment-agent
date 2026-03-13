@@ -43,7 +43,7 @@ The Bullish Researcher Specialist analyzes investment opportunities from an opti
 ```python
 growth_catalysts = {
     "revenue_growth": "Accelerating revenue growth indicates expanding business",
-    "market_expansion": "New market entry or geographic expansion opportunities", 
+    "market_expansion": "New market entry or geographic expansion opportunities",
     "product_innovation": "New product launches or innovation breakthroughs",
     "strategic_partnerships": "Partnerships that enhance competitive position",
     "industry_trends": "Favorable industry tailwinds and growth trends"
