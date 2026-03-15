@@ -28,12 +28,6 @@
       "key": "OPENROUTER_API_KEY",
       "description": "OpenRouter API key for LLM model access",
       "required": true
-    },
-    {
-      "key": "MODEL_NAME",
-      "description": "Model name to use (default: openai/gpt-oss-120b)",
-      "required": false,
-      "default": "openai/gpt-oss-120b"
     }
   ]
 }
