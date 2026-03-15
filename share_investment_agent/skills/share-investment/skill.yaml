@@ -5,13 +5,16 @@ author: paras@getbindu.com
 
 # Description
 description: |
-  Description of the share-investment skill.
-  TODO: Update this description with your skill's purpose and capabilities.
+  Multi-agent system for comprehensive stock investment analysis of Chinese stocks.
+  Coordinates 11 specialized agents to provide technical, fundamental, sentiment, valuation, and portfolio management recommendations.
 
 # Tags and Modes
 tags:
-  - share-investment
-  - TODO-add-relevant-tags
+  - stock-analysis
+  - investment-research
+  - technical-analysis
+  - fundamental-analysis
+  - portfolio-management
 
 input_modes:
   - text/plain
@@ -23,38 +26,50 @@ output_modes:
 
 # Example Queries
 examples:
-  - "TODO: Add example query 1"
-  - "TODO: Add example query 2"
-  - "TODO: Add example query 3"
+  - "Analyze Ping An Bank (000001) for investment"
+  - "Provide technical and fundamental analysis for stock 000001"
+  - "Should I buy, hold, or sell Ping An Bank with full analysis including debate"
 
 # Detailed Capabilities
 capabilities_detail:
   primary_capability:
     supported: true
-    description: "TODO: Describe your primary capability"
+    description: "Comprehensive multi-agent investment analysis for Chinese stocks using 6-digit ticker codes"
     features:
-      - "TODO: Feature 1"
-      - "TODO: Feature 2"
-    limitations: "TODO: List any limitations"
+      - "Market data acquisition from Chinese stock exchanges"
+      - "Technical analysis with MACD, RSI, Bollinger Bands"
+      - "Fundamental analysis with profitability and growth metrics"
+      - "Sentiment analysis and market psychology assessment"
+      - "DCF-based valuation analysis"
+      - "Bullish vs bearish researcher debate simulation"
+      - "Risk management assessment with VaR estimation"
+      - "Macroeconomic analysis and policy impact"
+      - "Portfolio management recommendations (buy/hold/sell)"
+    limitations: "Requires 6-digit Chinese stock ticker, processing time 5-10 minutes, OpenRouter API key required"
 
   secondary_capability:
     supported: false
-    planned_version: "TODO: Future version"
-    description: "TODO: Planned feature description"
+    planned_version: "2.0.0"
+    description: "Real-time market data streaming and historical backtesting"
 
 # Requirements
 requirements:
   packages:
-    - "TODO: Add required Python packages"
+    - "langchain"
+    - "langchain-openai"
+    - "langchain-core"
+    - "pandas"
+    - "pydantic"
+    - "bindu"
   system:
-    - "TODO: Add system dependencies if any"
-  min_memory_mb: 256
+    - "Python 3.12+"
+  min_memory_mb: 512
 
 # Performance Metrics
 performance:
-  avg_processing_time_ms: 1000
-  max_concurrent_requests: 10
-  memory_per_request_mb: 256
+  avg_processing_time_ms: 300000
+  max_concurrent_requests: 3
+  memory_per_request_mb: 512
   scalability: horizontal
 
 # Tool Restrictions
@@ -66,159 +81,212 @@ allowed_tools:
 # Rich Documentation
 documentation:
   overview: |
-    TODO: Provide a comprehensive overview of your skill.
-    Describe what it does, how it works, and what makes it useful.
-    Include information about the underlying technologies or approaches used.
+    Multi-agent investment analysis system using LangChain and OpenRouter models.
+    Coordinates 11 specialized agents: Market Data Acquisition, Technical Analysis, Fundamental Analysis,
+    Sentiment Analysis, Valuation Analysis, Macro News, Bullish Researcher, Bearish Researcher,
+    Debate Room, Risk Management, Macro Analyst, and Portfolio Management.
+    Uses async execution with rate limiting and retry logic for LLM calls.
 
   use_cases:
     when_to_use:
-      - "TODO: Scenario 1 when this skill should be used"
-      - "TODO: Scenario 2 when this skill should be used"
-      - "TODO: Scenario 3 when this skill should be used"
+      - "Investment decision support for Chinese stocks"
+      - "Comprehensive due diligence before trading"
+      - "Multi-perspective analysis combining technical and fundamental views"
+      - "Risk assessment and portfolio allocation decisions"
 
     when_not_to_use:
-      - "TODO: Scenario when this skill should NOT be used"
-      - "TODO: Alternative skill or approach for those scenarios"
-      - "TODO: Limitations or constraints"
+      - "Real-time trading signals (processing takes 5-10 minutes)"
+      - "Non-Chinese stocks or US equities"
+      - "Stocks without 6-digit ticker codes"
+      - "High-frequency trading strategies"
 
   input_structure: |
-    TODO: Describe the expected input format for your skill.
+    JSON-RPC 2.0 message with stock ticker in text content.
 
     Example:
     {
-      "parameter1": "value1",
-      "parameter2": "value2",
-      "options": {
-        "option1": true,
-        "option2": "value"
-      }
+      "jsonrpc": "2.0",
+      "method": "message/send",
+      "params": {
+        "message": {
+          "role": "user",
+          "parts": [
+            {
+              "kind": "text",
+              "text": "Analyze Ping An Bank (000001) for investment"
+            }
+          ],
+          "kind": "message",
+          "messageId": "uuid",
+          "contextId": "uuid",
+          "taskId": "uuid"
+        },
+        "skillId": "share-investment-v1",
+        "configuration": {
+          "acceptedOutputModes": ["application/json"]
+        }
+      },
+      "id": "uuid"
     }
 
     Constraints:
-    - TODO: List input constraints
-    - TODO: Validation rules
-    - TODO: Supported formats
+    - Must include 6-digit Chinese stock ticker code
+    - Ticker extracted via regex patterns: (000001), 000001, ticker: 000001
+    - Analysis request text can be natural language
 
   output_format: |
-    TODO: Describe the output format your skill produces.
+    JSON-RPC 2.0 result with markdown-formatted comprehensive analysis report.
 
     Success Response:
     {
-      "success": true,
+      "jsonrpc": "2.0",
+      "id": "uuid",
       "result": {
-        "data": "TODO: Your result data",
-        "metadata": {
-          "processing_time_ms": 1000,
-          "additional_info": "value"
-        }
+        "id": "task-uuid",
+        "context_id": "context-uuid",
+        "kind": "task",
+        "status": {
+          "state": "completed",
+          "timestamp": "2026-03-13T10:46:46.973017+00:00"
+        },
+        "history": [
+          {
+            "role": "assistant",
+            "parts": [
+              {
+                "kind": "text",
+                "text": "### Share Investment Analysis Report:\n\n**Stock Ticker:** 000001\n**Final Investment Decision:** HOLD (Confidence: 0.7)\n**Technical Analysis:** sell (53%)\n**Fundamental Analysis:** sell (70%)\n**Sentiment:** bullish\n**Valuation:** fairly valued\n**Debate Result:** bullish_wins\n**Risk Level:** medium\n..."
+              }
+            ]
+          }
+        ],
+        "artifacts": [
+          {
+            "name": "result",
+            "parts": [{"kind": "text", "text": "Full markdown report"}]
+          }
+        ]
       }
     }
 
     Error Response:
     {
-      "success": false,
-      "error": {
-        "code": "ERROR_CODE",
-        "message": "Error description"
+      "jsonrpc": "2.0",
+      "result": {
+        "history": [
+          {
+            "parts": [
+              {
+                "text": "Error: No stock ticker provided. Please include a 6-digit Chinese stock code (e.g., 000001)."
+              }
+            ]
+          }
+        ]
       }
     }
 
   error_handling:
-    - "TODO: Error type 1 and how it's handled"
-    - "TODO: Error type 2 and how it's handled"
-    - "TODO: Timeout behavior and fallback strategies"
-    - "TODO: Validation errors and user feedback"
-    - "TODO: Resource limit handling"
+    - "Missing ticker: Returns error message requesting 6-digit code"
+    - "API failures: Retry with exponential backoff (3 attempts, 1-4 second delays)"
+    - "Rate limits: Automatic retry after 30+ seconds based on retry_after header"
+    - "Market data errors: Graceful degradation with partial analysis"
+    - "LLM semaphore: Limits concurrent LLM calls to 3 to prevent rate limiting"
 
   examples:
-    - title: "TODO: Example 1 Title"
+    - title: "Comprehensive Investment Analysis"
       input:
-        parameter1: "value1"
-        parameter2: "value2"
+        text: "Provide balanced investment analysis for Ping An Bank (000001) including technical, fundamental, sentiment, valuation, debate, and portfolio recommendation"
       output:
-        success: true
-        result:
-          data: "example output"
-        metadata:
-          processing_time_ms: 500
+        status: "completed"
+        action: "HOLD"
+        confidence: 0.7
+        technical_signal: "sell"
+        fundamental_signal: "sell"
+        sentiment: "bullish"
+        valuation: "fairly valued"
+        debate_outcome: "bullish_wins"
+        risk_level: "medium"
+        processing_time_ms: 447000
 
-    - title: "TODO: Example 2 Title"
+    - title: "Quick Stock Analysis"
       input:
-        parameter1: "different_value"
-        options:
-          option1: true
+        text: "Analyze stock 000001"
       output:
-        success: true
-        result:
-          data: "example output 2"
-        metadata:
-          processing_time_ms: 750
+        status: "completed"
+        action: "HOLD"
+        specialists_involved: 11
+        processing_time_ms: 300000
 
   best_practices:
     for_developers:
-      - "TODO: Best practice 1 for implementing this skill"
-      - "TODO: Best practice 2 for error handling"
-      - "TODO: Best practice 3 for performance optimization"
-      - "TODO: Best practice 4 for testing and validation"
+      - "Use async/await for all agent operations"
+      - "Implement retry logic with exponential backoff for API calls"
+      - "Use semaphore (limit=3) to prevent rate limit errors"
+      - "Handle partial failures gracefully with error objects"
 
     for_orchestrators:
-      - "TODO: When to route requests to this skill"
-      - "TODO: How to chain this skill with others"
-      - "TODO: Performance considerations for load balancing"
-      - "TODO: Retry and fallback strategies"
-      - "TODO: Monitoring and observability recommendations"
+      - "Route Chinese stock analysis requests with 6-digit tickers to this skill"
+      - "Expect 5-10 minute processing time per analysis"
+      - "Do not use for real-time trading (async task pattern)"
+      - "Chain with risk management or portfolio optimization skills"
+      - "Monitor OpenRouter API quota and rate limits"
 
   installation: |
-    TODO: Provide installation instructions for your skill.
+    Install via uv package manager.
 
     Required packages:
-    pip install <your-package-name>
+    uv sync
 
-    Optional dependencies:
-    # TODO: Add platform-specific installation steps if needed
-    # macOS
-    brew install <dependency>
+    Environment variables:
+    OPENROUTER_API_KEY=<your-key>
+    MODEL_NAME=openai/gpt-oss-120b (optional, default provided)
 
-    # Ubuntu/Debian
-    apt-get install <dependency>
+    Run:
+    uv run python -m share_investment_agent
 
-    # Windows
-    # TODO: Windows-specific instructions
+    Server runs on: http://127.0.0.1:3774
 
   versioning:
     - version: "1.0.0"
-      date: "TODO: Release date"
-      changes: "Initial release with core functionality"
+      date: "2026-03-13"
+      changes: "Initial release with 11-agent multi-disciplinary analysis system"
     - version: "1.1.0"
       status: "planned"
-      changes: "TODO: Planned enhancements for next version"
+      changes: "Real-time data streaming and historical backtesting"
 
 # Assessment fields for skill negotiation
 assessment:
   keywords:
-    - "TODO: keyword1"
-    - "TODO: keyword2"
-    - "TODO: keyword3"
-    - "TODO: Add relevant keywords for skill matching"
+    - "stock analysis"
+    - "investment"
+    - "technical analysis"
+    - "fundamental analysis"
+    - "buy sell hold"
+    - "portfolio"
+    - "Chinese stocks"
+    - "valuation"
 
   specializations:
-    - domain: "TODO: domain1"
+    - domain: "stock-investment-analysis"
+      confidence_boost: 0.4
+    - domain: "chinese-stocks"
       confidence_boost: 0.3
-    - domain: "TODO: domain2"
+    - domain: "portfolio-management"
       confidence_boost: 0.2
 
   anti_patterns:
-    - "TODO: Pattern that should NOT match this skill"
-    - "TODO: Alternative skill name or approach"
-    - "TODO: Out of scope operations"
+    - "Real-time trading signals"
+    - "US stocks or non-Chinese markets"
+    - "Cryptocurrency analysis"
+    - "General financial advice"
 
   complexity_indicators:
     simple:
-      - "TODO: Simple task indicator 1"
-      - "TODO: Simple task indicator 2"
+      - "Analyze stock [ticker]"
+      - "Should I buy [ticker]"
     medium:
-      - "TODO: Medium complexity indicator 1"
-      - "TODO: Medium complexity indicator 2"
+      - "Technical and fundamental analysis for [ticker]"
+      - "Investment recommendation with risk assessment"
     complex:
-      - "TODO: Complex task indicator 1"
-      - "TODO: Complex task indicator 2"
+      - "Comprehensive analysis with debate and all specialists"
+      - "Multi-perspective analysis with bull/bear debate"

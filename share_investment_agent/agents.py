@@ -273,7 +273,8 @@ class InvestmentAnalysisAgent:
             """,
         }
 
-        return PromptTemplate.from_template(templates.get(self.role, templates.get("InvestmentAnalysisAgent")))
+        template = templates.get(self.role) or templates.get("InvestmentAnalysisAgent", "")
+        return PromptTemplate.from_template(template)
 
     async def run(self, **kwargs) -> dict[str, Any]:
         """Run the investment analysis with safe LLM calls."""
@@ -646,7 +647,6 @@ class TechnicalAnalysisAgent(InvestmentAnalysisAgent):
     async def run_analysis(self, **kwargs) -> dict[str, Any]:
         """Perform sophisticated technical analysis with real market data."""
         market_data = kwargs.get("market_data", {})
-        analysis_request = kwargs.get("analysis_request", "technical analysis")
 
         # Check if we have valid market data
         if "error" in market_data:
@@ -736,28 +736,6 @@ class TechnicalAnalysisAgent(InvestmentAnalysisAgent):
                 "timestamp": datetime.now().isoformat(),
             }
 
-            # Generate LLM analysis for interpretation
-            analysis_prompt = {
-                "ticker": self.ticker,
-                "technical_indicators": json.dumps(analysis_report, indent=2),
-                "analysis_request": analysis_request,
-            }
-
-            technical_analysis = await super().run(**analysis_prompt)
-
-            return {
-                "ticker": self.ticker,
-                "technical_indicators": analysis_report,
-                "technical_analysis": technical_analysis,
-                "signal": self._extract_technical_signal(technical_analysis),
-                "confidence": self._extract_confidence(technical_analysis),
-                "timestamp": datetime.now().isoformat(),
-            }
-
-        except Exception as e:
-            logger.exception("Technical analysis failed")
-            return {"ticker": self.ticker, "error": str(e), "timestamp": datetime.now().isoformat()}
-
 
 class FundamentalAnalysisAgent(InvestmentAnalysisAgent):
     """
@@ -780,7 +758,6 @@ class FundamentalAnalysisAgent(InvestmentAnalysisAgent):
     async def run_analysis(self, **kwargs) -> dict[str, Any]:
         """Perform sophisticated fundamental analysis with real market data."""
         market_data = kwargs.get("market_data", {})
-        analysis_request = kwargs.get("analysis_request", "fundamental analysis")
 
         # Check if we have valid market data
         if "error" in market_data:
@@ -803,118 +780,6 @@ class FundamentalAnalysisAgent(InvestmentAnalysisAgent):
             # Extract key financial metrics
             profitability = financial_data.get("profitability", {})
             growth = financial_data.get("growth", {})
-            financial_health = financial_data.get("financial_health", {})
-            valuation = financial_data.get("valuation", {})
-
-            # Get current market metrics
-            current_price = market_data.get("current_price", 0)
-            market_cap = market_data.get("market_cap", 0)
-            pe_ratio = market_data.get("pe_ratio", 0)
-            revenue = market_data.get("revenue", 0)
-            eps = market_data.get("eps", 0)
-
-            # Calculate fundamental signals
-            roe = profitability.get("roe", 0)
-            roa = profitability.get("roa", 0)
-            net_margin = profitability.get("net_margin", 0)
-            gross_margin = profitability.get("gross_margin", 0)
-
-            # Generate signals based on fundamental metrics
-            profitability_signal = (
-                "strong" if roe > 0.15 and net_margin > 0.10 else "moderate" if roe > 0.08 else "weak"
-            )
-            growth_signal = (
-                "strong"
-                if growth.get("revenue_growth", 0) > 0.15
-                else "moderate"
-                if growth.get("revenue_growth", 0) > 0.05
-                else "weak"
-            )
-            valuation_signal = "undervalued" if pe_ratio < 15 else "fair" if pe_ratio < 25 else "overvalued"
-
-            # Overall fundamental signal (weighted decision)
-            if profitability_signal == "strong" and growth_signal == "strong":
-                overall_signal = "buy"
-                confidence = 0.8
-            elif profitability_signal == "weak" or growth_signal == "weak":
-                overall_signal = "sell"
-                confidence = 0.7
-            else:
-                overall_signal = "hold"
-                confidence = 0.6
-
-            # Create comprehensive analysis report
-            analysis_report = {
-                "ticker": self.ticker,
-                "current_price": current_price,
-                "market_cap": market_cap,
-                "revenue": revenue,
-                "eps": eps,
-                "pe_ratio": pe_ratio,
-                "fundamental_analysis": {
-                    "signal": overall_signal,
-                    "confidence": f"{round(float(confidence) * 100)}%",
-                    "profitability": {
-                        "roe": roe,
-                        "roa": roa,
-                        "net_margin": net_margin,
-                        "gross_margin": gross_margin,
-                        "signal": profitability_signal,
-                    },
-                    "growth": {
-                        "revenue_growth": growth.get("revenue_growth", 0),
-                        "earnings_growth": growth.get("earnings_growth", 0),
-                        "eps_growth": growth.get("eps_growth", 0),
-                        "signal": growth_signal,
-                    },
-                    "valuation": {
-                        "pe_ratio": pe_ratio,
-                        "pb_ratio": valuation.get("pb_ratio", 0),
-                        "ps_ratio": valuation.get("ps_ratio", 0),
-                        "signal": valuation_signal,
-                    },
-                },
-                "timestamp": datetime.now().isoformat(),
-            }
-
-            logger.info(f"Fundamental analysis completed for {self.ticker}: {overall_signal}")
-            return analysis_report
-
-        except Exception as e:
-            logger.exception("Fundamental analysis failed")
-            return {
-                "ticker": self.ticker,
-                "error": f"Fundamental analysis failed: {e!s}",
-                "timestamp": datetime.now().isoformat(),
-            }
-
-    async def run_analysis(self, **kwargs) -> dict[str, Any]:
-        """Perform sophisticated fundamental analysis with real market data."""
-        market_data = kwargs.get("market_data", {})
-        analysis_request = kwargs.get("analysis_request", "fundamental analysis")
-
-        # Check if we have valid market data
-        if "error" in market_data:
-            return {
-                "ticker": self.ticker,
-                "error": f"Market data unavailable: {market_data.get('error', 'Unknown error')}",
-                "timestamp": datetime.now().isoformat(),
-            }
-
-        # Get financial data from market data
-        financial_data = market_data.get("financial_data", {})
-        if not financial_data:
-            return {
-                "ticker": self.ticker,
-                "error": "No financial data available",
-                "timestamp": datetime.now().isoformat(),
-            }
-
-        try:
-            # Extract key financial metrics
-            profitability = financial_data.get("profitability", {})
-            growth = financial_data.get("growth", {})
-            financial_health = financial_data.get("financial_health", {})
             valuation = financial_data.get("valuation", {})
 
             # Get current market metrics
@@ -1257,12 +1122,7 @@ class ValuationAnalysisAgent(InvestmentAnalysisAgent):
             intrinsic_value = intrinsic_eps * pe_ratio if pe_ratio > 0 else eps * 15  # Default PE of 15
         else:
             # Fallback to revenue-based valuation
-            if revenue > 0:
-                # Use price-to-sales ratio of 2 for banks
-                intrinsic_value = revenue * 2 / 1000000000  # Convert to per-share value
-            else:
-                # Use current price as fallback
-                intrinsic_value = market_data.get("current_price", 0)
+            intrinsic_value = revenue * 2 / 1000000000 if revenue > 0 else market_data.get("current_price", 0)
 
         return intrinsic_value
 

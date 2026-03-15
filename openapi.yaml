@@ -1,0 +1,1325 @@
+openapi: 3.1.0
+info:
+  title: Share Investment Agent API
+  description: |
+    A multi-agent system for comprehensive stock investment analysis of Chinese stocks.
+    Coordinates 11 specialized agents to provide technical analysis, fundamental analysis,
+    sentiment analysis, valuation analysis, bullish/bearish research perspectives, debate
+    synthesis, risk management, macroeconomic analysis, and portfolio management recommendations.
+
+    Implements the A2A Protocol with JSON-RPC 2.0 methods for agent communication, task
+    management, context management, DID resolution, and payment processing.
+
+    ## Why Task-First Architecture?
+
+    This API follows Bindu's **Task-First Agent Pattern** - every interaction creates a trackable task.
+    This isn't just about async operations; it enables:
+
+    **Multi-Agent Orchestration**
+    - Track work across 11 specialized agents (Technical, Fundamental, Sentiment, Valuation, etc.)
+    - Each agent's work becomes a task with clear state and results
+    - Orchestrators can coordinate complex workflows by chaining tasks
+
+    **Parallel Execution**
+    - Multiple tasks can run simultaneously with unique task IDs
+    - Example: Analyze multiple stocks in parallel
+
+    **Dependency Management**
+    - Use `referenceTaskIds` to chain tasks together
+    - Later tasks can reference earlier task results
+    - Build complex workflows: Task A → Task B (depends on A) → Task C (depends on B)
+
+    **Context Continuity**
+    - Multiple tasks share the same `contextId` for conversation history
+    - Maintain context across a series of related requests
+
+    This aligns with the A2A Protocol's "Task-only Agent" pattern where **all responses are Task objects**,
+    enabling orchestration at scale.
+
+    **Learn more:** [Task-First Pattern Documentation](https://docs.getbindu.com/bindu/concepts/task-first-pattern)
+
+    ## Getting Started
+
+    ### Authentication
+    All JSON-RPC requests require a Bearer token in the Authorization header:
+    ```
+    Authorization: Bearer YOUR_TOKEN_HERE
+    ```
+
+    ### Basic Workflow (Async Task Pattern)
+
+    This API uses an **asynchronous task pattern**. Investment analysis takes 5-10 minutes,
+    so you must poll for completion:
+
+    **Step 1: Send a message** (creates a task)
+    ```bash
+    curl -X POST http://localhost:3774 \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer YOUR_TOKEN" \
+      -d '{
+        "jsonrpc": "2.0",
+        "method": "message/send",
+        "params": {
+          "message": {
+            "role": "user",
+            "parts": [{"kind": "text", "text": "Analyze Ping An Bank (000001) for investment"}],
+            "kind": "message",
+            "messageId": "5c61a310-5616-49ad-b187-d93cbb600001",
+            "contextId": "5c61a310-5616-49ad-b187-d93cbb600002",
+            "taskId": "5c61a310-5616-49ad-b187-d93cbb600003"
+          },
+          "skillId": "share-investment-v1",
+          "configuration": {
+            "acceptedOutputModes": ["application/json"]
+          }
+        },
+        "id": "5c61a310-5616-49ad-b187-d93cbb600003"
+      }'
+    ```
+    Response: Task with `"state": "submitted"`
+
+    **Step 2: Poll for task status** (check if working/completed)
+    ```bash
+    curl -X POST http://localhost:3774 \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer YOUR_TOKEN" \
+      -d '{
+        "jsonrpc": "2.0",
+        "method": "tasks/get",
+        "params": {"taskId": "5c61a310-5616-49ad-b187-d93cbb600003"},
+        "id": "5c61a310-5616-49ad-b187-d93cbb600004"
+      }'
+    ```
+    Response: Task with `"state": "working"` or `"state": "completed"`
+
+    **Step 3: Get results** (when state is "completed")
+    The completed task includes:
+    - `history`: Full conversation history (user message + assistant response)
+    - `artifacts`: Structured results with comprehensive investment analysis report
+
+    ### Available JSON-RPC Methods
+
+    - **message/send** - Send a message and create a new task
+    - **tasks/get** - Get task details by ID (use for polling)
+    - **tasks/list** - List all tasks with pagination
+    - **tasks/cancel** - Cancel a running task
+    - **tasks/feedback** - Submit feedback for a completed task
+    - **contexts/list** - List conversation contexts
+    - **contexts/clear** - Clear a conversation context
+
+    ### Task States
+
+    - `submitted` - Task created, not yet started
+    - `working` - Task is being processed by 11 specialized agents (5-10 minutes)
+    - `completed` - Task finished successfully (check artifacts for results)
+    - `failed` - Task encountered an error
+    - `canceled` - Task was canceled by user
+    - `input-required` - Task needs additional input from user
+
+    ### Example Use Cases
+
+    - "Analyze Ping An Bank (000001) for investment"
+    - "Provide technical and fundamental analysis for stock 000001"
+    - "Should I buy, hold, or sell Ping An Bank with full analysis including debate"
+    - "Comprehensive investment analysis for Chinese bank stock 000001"
+  version: 1.0.0
+servers:
+  - url: http://127.0.0.1:3774
+    description: Local development server
+  - url: https://share-investment-agent.bindu-agents.bindus.directory
+    description: Production server
+security:
+  - bearerAuth: []
+paths:
+  /:
+    post:
+      summary: JSON-RPC 2.0 endpoint
+      description: |
+        All JSON-RPC methods are sent as POST requests to this endpoint.
+
+        **Available Methods:**
+        - `message/send` - Send a message and create a new task
+        - `tasks/get` - Get task details by ID (use for polling)
+        - `tasks/list` - List all tasks
+        - `tasks/cancel` - Cancel a running task
+        - `tasks/feedback` - Submit feedback for a task
+        - `contexts/list` - List conversation contexts
+        - `contexts/clear` - Clear a conversation context
+
+        **Async Task Pattern:**
+        1. Call `message/send` to create a task (returns with state "submitted")
+        2. Poll `tasks/get` every 10-15 seconds until state changes to "completed" (or "failed")
+        3. Extract results from the `artifacts` array in the completed task
+
+        **Important:** Investment analysis takes 5-10 minutes due to 11-agent coordination.
+      operationId: jsonRpc
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JsonRpcRequest'
+            examples:
+              messageSend:
+                summary: Send investment analysis request (Step 1 - Create Task)
+                description: Creates a new task for comprehensive stock analysis
+                value:
+                  jsonrpc: "2.0"
+                  method: "message/send"
+                  params:
+                    message:
+                      role: "user"
+                      parts:
+                        - kind: "text"
+                          text: "Provide balanced investment analysis for Ping An Bank (000001) including:\n- Technical analysis with MACD, RSI, Bollinger Bands\n- Fundamental analysis with profitability metrics\n- Sentiment analysis with market psychology\n- Valuation analysis with DCF\n- Bullish researcher perspective\n- Bearish researcher perspective\n- Debate room synthesis\n- Final portfolio management recommendation"
+                      kind: "message"
+                      messageId: "5c61a310-5616-49ad-b187-d93cbb600001"
+                      contextId: "5c61a310-5616-49ad-b187-d93cbb600002"
+                      taskId: "5c61a310-5616-49ad-b187-d93cbb600003"
+                    skillId: "share-investment-v1"
+                    configuration:
+                      acceptedOutputModes:
+                        - "application/json"
+                  id: "5c61a310-5616-49ad-b187-d93cbb600003"
+              tasksGet:
+                summary: Get task status (Step 2 - Poll for Completion)
+                description: Check if the analysis is completed and retrieve results
+                value:
+                  jsonrpc: "2.0"
+                  method: "tasks/get"
+                  params:
+                    taskId: "5c61a310-5616-49ad-b187-d93cbb600003"
+                  id: "5c61a310-5616-49ad-b187-d93cbb600004"
+              tasksList:
+                summary: List all tasks
+                description: Get a paginated list of all investment analysis tasks
+                value:
+                  jsonrpc: "2.0"
+                  method: "tasks/list"
+                  params:
+                    limit: 10
+                    offset: 0
+                  id: "550e8400-e29b-41d4-a716-446655440025"
+              tasksCancel:
+                summary: Cancel a task
+                description: Cancel a running or submitted analysis task
+                value:
+                  jsonrpc: "2.0"
+                  method: "tasks/cancel"
+                  params:
+                    taskId: "5c61a310-5616-49ad-b187-d93cbb600003"
+                  id: "550e8400-e29b-41d4-a716-446655440026"
+      responses:
+        '200':
+          description: Successful JSON-RPC response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonRpcResponse'
+              examples:
+                messageSendSubmitted:
+                  summary: Task created (state = submitted)
+                  description: Initial response after sending investment analysis request
+                  value:
+                    jsonrpc: "2.0"
+                    id: "5c61a310-5616-49ad-b187-d93cbb600003"
+                    result:
+                      id: "5c61a310-5616-49ad-b187-d93cbb600003"
+                      context_id: "5c61a310-5616-49ad-b187-d93cbb600002"
+                      kind: "task"
+                      status:
+                        state: "submitted"
+                        timestamp: "2026-03-13T10:39:19.685734+00:00"
+                      history:
+                        - kind: "message"
+                          role: "user"
+                          parts:
+                            - kind: "text"
+                              text: "Provide balanced investment analysis for Ping An Bank (000001)"
+                          task_id: "5c61a310-5616-49ad-b187-d93cbb600003"
+                          context_id: "5c61a310-5616-49ad-b187-d93cbb600002"
+                          message_id: "5c61a310-5616-49ad-b187-d93cbb600001"
+                      artifacts: []
+                      metadata: {}
+                tasksGetWorking:
+                  summary: Task in progress (state = working)
+                  description: Response when polling a task that is still being analyzed by 11 agents
+                  value:
+                    jsonrpc: "2.0"
+                    id: "5c61a310-5616-49ad-b187-d93cbb600004"
+                    result:
+                      id: "5c61a310-5616-49ad-b187-d93cbb600003"
+                      context_id: "5c61a310-5616-49ad-b187-d93cbb600002"
+                      kind: "task"
+                      status:
+                        state: "working"
+                        timestamp: "2026-03-13T10:42:00.000000+00:00"
+                      history:
+                        - kind: "message"
+                          role: "user"
+                          parts:
+                            - kind: "text"
+                              text: "Provide balanced investment analysis for Ping An Bank (000001)"
+                          task_id: "5c61a310-5616-49ad-b187-d93cbb600003"
+                          context_id: "5c61a310-5616-49ad-b187-d93cbb600002"
+                          message_id: "5c61a310-5616-49ad-b187-d93cbb600001"
+                      artifacts: []
+                      metadata: {}
+                tasksGetCompleted:
+                  summary: Task completed (state = completed)
+                  description: Final response with comprehensive investment analysis in artifacts
+                  value:
+                    jsonrpc: "2.0"
+                    id: "5c61a310-5616-49ad-b187-d93cbb600004"
+                    result:
+                      id: "5c61a310-5616-49ad-b187-d93cbb600003"
+                      context_id: "5c61a310-5616-49ad-b187-d93cbb600002"
+                      kind: "task"
+                      status:
+                        state: "completed"
+                        timestamp: "2026-03-13T10:46:46.973017+00:00"
+                      history:
+                        - kind: "message"
+                          role: "user"
+                          parts:
+                            - kind: "text"
+                              text: "Provide balanced investment analysis for Ping An Bank (000001)"
+                          task_id: "5c61a310-5616-49ad-b187-d93cbb600003"
+                          context_id: "5c61a310-5616-49ad-b187-d93cbb600002"
+                          message_id: "5c61a310-5616-49ad-b187-d93cbb600001"
+                        - kind: "message"
+                          role: "assistant"
+                          parts:
+                            - kind: "text"
+                              text: "### Share Investment Analysis Report:\n\n**Stock Ticker:** 000001\n**Final Investment Decision:** HOLD (Confidence: 0.7)\n**Technical Analysis:** sell (53%)\n**Fundamental Analysis:** sell (70%)\n**Sentiment:** bullish\n**Valuation:** fairly valued\n**Debate Result:** bullish_wins\n**Risk Level:** medium\n..."
+                          task_id: "5c61a310-5616-49ad-b187-d93cbb600003"
+                          context_id: "5c61a310-5616-49ad-b187-d93cbb600002"
+                          message_id: "589ef550-fefa-4d3a-a5ed-ee9936a20992"
+                      artifacts:
+                        - name: "result"
+                          parts:
+                            - kind: "text"
+                              text: "### Share Investment Analysis Report:\n\n**Stock Ticker:** 000001\n**Analysis Date:** 2026-03-13T16:16:46.883313\n\n#### Final Investment Decision:\n- **Action:** HOLD\n- **Confidence:** 0.7\n- **Quantity:** 0 shares\n\n#### Core Specialist Analysis Summary:\n**Technical Analysis:** sell (Confidence: 53%)\n**Fundamental Analysis:** sell (Confidence: 70%)\n**Sentiment Analysis:** bullish (Confidence: medium)\n**Valuation Analysis:** fairly valued (Confidence: medium)\n\n#### Research Team Analysis:\n**Bullish Researcher:** bullish (Confidence: 0.5)\n**Bearish Researcher:** bearish (Confidence: 0.5)\n\n#### Debate Room Outcome:\n**Debate Result:** bullish_wins\n**Mixed Confidence:** 0.5\n\n#### Risk Management Assessment:\n**Risk Level:** medium\n**VaR Estimate:** 0.05\n**Risk Factors:** 3 identified factors\n\n#### Market Data Summary:\n- **Current Price:** 10.93\n- **Market Cap:** 212106690560\n- **Volume:** 84193915\n\n*Analysis performed by AI Share Investment Agent*\n*Specialist Team: Market Data, Technical, Fundamental, Sentiment, Valuation, Macro News, Bull/Bear Researchers, Debate Room, Risk Management, Macro Analyst, Portfolio Management*"
+                              metadata:
+                                did.message.signature: "2M1qbfLcyoQhSAfTzDghw15PMTfmv3jUoigk7KRuiowkEWZpU7aYLHTnqwamjEo4SxNskq15PZANNLuhJ7omzsxg"
+                          artifact_id: "985b4f37-ee2e-48a4-bd6f-c66472e67b85"
+                      metadata: {}
+        '400':
+          description: Invalid JSON-RPC request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonRpcResponse'
+              example:
+                jsonrpc: "2.0"
+                id: "5c61a310-5616-49ad-b187-d93cbb600003"
+                error:
+                  code: -32600
+                  message: "Invalid Request"
+        '401':
+          description: Unauthorized - missing or invalid bearer token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              example:
+                error: "Unauthorized"
+      security:
+        - bearerAuth: []
+      x-code-samples:
+        - lang: 'curl'
+          label: 'Step 1: Send Investment Analysis Request'
+          source: |
+            curl --location 'http://localhost:3774' \
+            --header 'Content-Type: application/json' \
+            --header 'Authorization: Bearer YOUR_TOKEN_HERE' \
+            --data '{
+              "jsonrpc": "2.0",
+              "method": "message/send",
+              "params": {
+                "message": {
+                  "role": "user",
+                  "parts": [
+                    {
+                      "kind": "text",
+                      "text": "Analyze Ping An Bank (000001) for investment"
+                    }
+                  ],
+                  "kind": "message",
+                  "messageId": "5c61a310-5616-49ad-b187-d93cbb600001",
+                  "contextId": "5c61a310-5616-49ad-b187-d93cbb600002",
+                  "taskId": "5c61a310-5616-49ad-b187-d93cbb600003"
+                },
+                "skillId": "share-investment-v1",
+                "configuration": {
+                  "acceptedOutputModes": [
+                    "application/json"
+                  ]
+                }
+              },
+              "id": "5c61a310-5616-49ad-b187-d93cbb600003"
+            }'
+  '/.well-known/agent.json':
+    get:
+      summary: Get Agent Card
+      description: Returns the agent's metadata card following the A2A Protocol specification.
+      operationId: getAgentCard
+      responses:
+        '200':
+          description: Agent card retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentCard'
+      security: []
+  '/did/resolve':
+    post:
+      summary: Resolve DID
+      description: Resolves a Decentralized Identifier (DID) to its W3C-compliant DID document.
+      operationId: resolveDid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - did
+              properties:
+                did:
+                  type: string
+                  description: The DID to resolve
+                  example: 'did:bindu:paras_at_getbindu_com:share-investment-agent:abc123'
+      responses:
+        '200':
+          description: DID document resolved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DidDocument'
+      security: []
+  '/agent/skills':
+    get:
+      summary: List Agent Skills
+      description: Returns a list of all skills supported by the agent.
+      operationId: listSkills
+      responses:
+        '200':
+          description: List of skills
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  skills:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SkillSummary'
+                  total:
+                    type: integer
+                    example: 1
+      security: []
+  '/agent/skills/{skillId}':
+    get:
+      summary: Get Skill Details
+      description: Returns detailed information about a specific skill.
+      operationId: getSkillDetails
+      parameters:
+        - name: skillId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The skill identifier (e.g., 'share-investment-v1')
+      responses:
+        '200':
+          description: Skill details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SkillDetail'
+        '404':
+          description: Skill not found
+      security: []
+  '/agent/skills/{skillId}/documentation':
+    get:
+      summary: Get Skill Documentation
+      description: Returns human-readable documentation for a specific skill in Markdown or YAML format.
+      operationId: getSkillDocumentation
+      parameters:
+        - name: skillId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The skill identifier
+      responses:
+        '200':
+          description: Skill documentation
+          content:
+            application/yaml:
+              schema:
+                type: string
+                description: YAML formatted documentation
+            text/markdown:
+              schema:
+                type: string
+                description: Markdown formatted documentation
+        '404':
+          description: Skill not found
+      security: []
+  '/agent/negotiation':
+    post:
+      summary: Assess Task Capability
+      description: Assess agent's capability to handle a task for negotiation.
+      operationId: assessTaskCapability
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NegotiationRequest'
+      responses:
+        '200':
+          description: Capability assessment result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NegotiationResponse'
+      security: []
+  '/api/start-payment-session':
+    post:
+      summary: Start Payment Session
+      description: Initiates a payment session for x402 protocol.
+      operationId: startPaymentSession
+      responses:
+        '200':
+          description: Payment session started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentSession'
+      security:
+        - bearerAuth: []
+  '/api/payment-status/{sessionId}':
+    get:
+      summary: Get Payment Status
+      description: Retrieves the status of a payment session.
+      operationId: getPaymentStatus
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The payment session identifier
+        - name: wait
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: Set to 'true' to wait for completion (up to 5 minutes)
+      responses:
+        '200':
+          description: Payment status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentStatus'
+      security:
+        - bearerAuth: []
+  '/payment-capture':
+    get:
+      summary: Payment Capture Page
+      description: Browser page to capture payment. Shows paywall UI and captures payment token.
+      operationId: paymentCapture
+      parameters:
+        - name: session_id
+          in: query
+          required: true
+          schema:
+            type: string
+          description: The payment session ID
+      responses:
+        '200':
+          description: Payment capture page (HTML)
+          content:
+            text/html:
+              schema:
+                type: string
+      security: []
+  /health:
+    get:
+      summary: Health Check
+      description: Health check endpoint for service monitoring.
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service health information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+      security: []
+  /metrics:
+    get:
+      summary: Prometheus Metrics
+      description: Prometheus metrics endpoint for scraping.
+      operationId: getMetrics
+      responses:
+        '200':
+          description: Metrics in Prometheus text format
+          content:
+            text/plain:
+              schema:
+                type: string
+      security: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Bearer token authentication. Include `Bearer <token>` in the Authorization header.
+  schemas:
+    # ----- JSON-RPC -----
+    JsonRpcRequest:
+      type: object
+      required:
+        - jsonrpc
+        - method
+        - id
+      properties:
+        jsonrpc:
+          type: string
+          enum: ['2.0']
+        method:
+          type: string
+          enum:
+            - message/send
+            - tasks/get
+            - tasks/list
+            - tasks/cancel
+            - tasks/feedback
+            - contexts/list
+            - contexts/clear
+        params:
+          oneOf:
+            - $ref: '#/components/schemas/MessageSendParams'
+            - $ref: '#/components/schemas/TasksGetParams'
+            - $ref: '#/components/schemas/TasksListParams'
+            - $ref: '#/components/schemas/TasksCancelParams'
+            - $ref: '#/components/schemas/TasksFeedbackParams'
+            - $ref: '#/components/schemas/ContextsListParams'
+            - $ref: '#/components/schemas/ContextsClearParams'
+          discriminator:
+            propertyName: method
+            mapping:
+              message/send: '#/components/schemas/MessageSendParams'
+              tasks/get: '#/components/schemas/TasksGetParams'
+              tasks/list: '#/components/schemas/TasksListParams'
+              tasks/cancel: '#/components/schemas/TasksCancelParams'
+              tasks/feedback: '#/components/schemas/TasksFeedbackParams'
+              contexts/list: '#/components/schemas/ContextsListParams'
+              contexts/clear: '#/components/schemas/ContextsClearParams'
+        id:
+          type: string
+          format: uuid
+          example: '5c61a310-5616-49ad-b187-d93cbb600003'
+    JsonRpcResponse:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          enum: ['2.0']
+        id:
+          type: string
+          format: uuid
+        result:
+          oneOf:
+            - $ref: '#/components/schemas/MessageSendResult'
+            - $ref: '#/components/schemas/TasksGetResult'
+            - $ref: '#/components/schemas/TasksListResult'
+            - $ref: '#/components/schemas/TasksCancelResult'
+            - $ref: '#/components/schemas/TasksFeedbackResult'
+            - $ref: '#/components/schemas/ContextsListResult'
+            - $ref: '#/components/schemas/ContextsClearResult'
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+            message:
+              type: string
+      oneOf:
+        - required: [result]
+        - required: [error]
+    # MessageSend
+    MessageSendParams:
+      type: object
+      description: |
+        Parameters for sending a message to create a new investment analysis task.
+
+        **This creates an asynchronous task** - the response will contain a task ID with state "submitted".
+        You must poll the task using `tasks/get` to check when it completes (5-10 minutes).
+
+        **Required:** Include a 6-digit Chinese stock ticker code in the message text.
+      required:
+        - message
+      properties:
+        message:
+          $ref: '#/components/schemas/UserMessage'
+        configuration:
+          type: object
+          description: Configuration options for the task execution
+          properties:
+            acceptedOutputModes:
+              type: array
+              description: Preferred output formats (e.g., "application/json" for structured data)
+              items:
+                type: string
+                enum: ['application/json', 'text/plain']
+        skillId:
+          type: string
+          description: Optional skill ID to invoke (e.g., "share-investment-v1")
+    UserMessage:
+      type: object
+      description: |
+        A message from the user to the agent requesting stock investment analysis.
+
+        **Important:** 
+        - All IDs (messageId, contextId, taskId) should be UUIDs generated by the client.
+        - Use the same contextId for related messages in a conversation.
+        - Message text must include a 6-digit Chinese stock ticker code (e.g., 000001).
+      required:
+        - role
+        - parts
+        - kind
+        - messageId
+        - contextId
+        - taskId
+      properties:
+        role:
+          type: string
+          enum: ['user']
+          description: Must be "user" for messages sent to the agent
+        parts:
+          type: array
+          description: Array of message parts (currently only text is supported)
+          items:
+            $ref: '#/components/schemas/MessagePart'
+        kind:
+          type: string
+          enum: ['message']
+          description: Must be "message"
+        messageId:
+          type: string
+          format: uuid
+          description: Unique identifier for this message (client-generated UUID)
+        contextId:
+          type: string
+          format: uuid
+          description: Conversation context ID - use the same ID for related messages
+        taskId:
+          type: string
+          format: uuid
+          description: Task ID for this request (client-generated UUID) - use this to poll for results
+        referenceTaskIds:
+          type: array
+          description: |
+            Optional array of task IDs that this task depends on or references.
+
+            **Use Cases:**
+            - **Task Chaining**: Reference a completed task to build on its results
+            - **Context Sharing**: Link related tasks in a workflow
+            - **Dependency Management**: Indicate this task needs results from other tasks
+
+            **Example Workflow:**
+            ```
+            Task1: "Analyze stock 000001" → completes with analysis
+            Task2: "Compare with stock 000002" (referenceTaskIds: [Task1]) → uses Task1 results
+            Task3: "Create portfolio recommendation" (referenceTaskIds: [Task1, Task2]) → combines both
+            ```
+
+            The agent can access results from referenced tasks to provide better context.
+          items:
+            type: string
+            format: uuid
+        metadata:
+          type: object
+          description: Additional metadata, e.g., for payment
+    MessagePart:
+      type: object
+      required:
+        - kind
+      properties:
+        kind:
+          type: string
+          enum: ['text']
+        text:
+          type: string
+          description: Message text - must include a 6-digit Chinese stock ticker code
+    MessageSendResult:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        context_id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum: ['task']
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/HistoryMessage'
+        artifacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Artifact'
+        metadata:
+          type: object
+    TaskStatus:
+      type: object
+      description: |
+        Current status of an investment analysis task.
+
+        **Task Lifecycle:**
+
+        **Non-Terminal States (Task Open, Mutable):**
+        1. `submitted` - Task created, queued for processing
+        2. `working` - Task is being processed by 11 specialized agents (5-10 minutes)
+        3. `input-required` - Task needs additional input from user
+        4. `auth-required` - Task needs authentication/authorization
+
+        **Terminal States (Task Immutable, Final):**
+        - `completed` - Task finished successfully (check artifacts for comprehensive analysis report)
+        - `failed` - Task encountered an error
+        - `canceled` - Task was canceled by user
+        - `rejected` - Task was rejected (e.g., missing ticker code)
+
+        **Important:** Once a task reaches a terminal state, it becomes immutable and cannot be restarted.
+        To refine or continue work, create a new task with `referenceTaskIds` pointing to the completed task.
+      required:
+        - state
+        - timestamp
+      properties:
+        state:
+          type: string
+          enum: [submitted, working, input-required, auth-required, completed, failed, canceled, rejected]
+          description: |
+            Current state of the task:
+
+            **Non-Terminal (poll again):**
+            - **submitted**: Task created, not yet started
+            - **working**: Task is being processed by 11 agents (5-10 minutes)
+            - **input-required**: Task needs more information from user
+            - **auth-required**: Task needs authentication/authorization
+
+            **Terminal (final state):**
+            - **completed**: Task finished - comprehensive analysis report is in artifacts array
+            - **failed**: Task encountered an error (check history for details)
+            - **canceled**: Task was canceled by user
+            - **rejected**: Task was rejected (e.g., missing 6-digit ticker code)
+        timestamp:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of when this state was reached
+    HistoryMessage:
+      type: object
+      properties:
+        kind:
+          type: string
+        role:
+          type: string
+        parts:
+          type: array
+          items:
+            $ref: '#/components/schemas/MessagePart'
+        task_id:
+          type: string
+          format: uuid
+        context_id:
+          type: string
+          format: uuid
+        message_id:
+          type: string
+          format: uuid
+        reference_task_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+    Artifact:
+      type: object
+      description: |
+        A structured output artifact from a completed investment analysis task.
+
+        The artifact with `name: "result"` contains the comprehensive investment analysis report
+        including technical analysis, fundamental analysis, sentiment, valuation, debate synthesis,
+        risk management, and portfolio recommendation.
+      properties:
+        name:
+          type: string
+          description: Artifact name (typically "result" for the main output)
+        parts:
+          type: array
+          description: Content parts of the artifact
+          items:
+            $ref: '#/components/schemas/MessagePart'
+        artifact_id:
+          type: string
+          format: uuid
+          description: Unique identifier for this artifact
+        metadata:
+          type: object
+          description: Additional artifact metadata (may include signatures)
+    # TasksGet
+    TasksGetParams:
+      type: object
+      description: |
+        Parameters for retrieving task details.
+
+        **Use this method to poll for task completion** after calling `message/send`.
+        Poll every 10-15 seconds until the state is "completed", "failed", or "canceled".
+        Investment analysis takes 5-10 minutes due to 11-agent coordination.
+      required:
+        - taskId
+      properties:
+        taskId:
+          type: string
+          format: uuid
+          description: The task ID returned from message/send
+    TasksGetResult:
+      $ref: '#/components/schemas/Task'
+    Task:
+      type: object
+      description: |
+        A task represents an asynchronous investment analysis operation.
+
+        **When state is "completed":**
+        - `history` contains the full conversation (user message + assistant response)
+        - `artifacts` contains the comprehensive investment analysis report (check the "result" artifact)
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique task identifier
+        context_id:
+          type: string
+          format: uuid
+          description: Conversation context this task belongs to
+        kind:
+          type: string
+          enum: ['task']
+          description: Always "task"
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        history:
+          type: array
+          description: Conversation history (user messages and assistant responses)
+          items:
+            $ref: '#/components/schemas/HistoryMessage'
+        artifacts:
+          type: array
+          description: |
+            Structured results when task is completed.
+            Look for the artifact with name "result" for the comprehensive investment analysis report.
+          items:
+            $ref: '#/components/schemas/Artifact'
+        metadata:
+          type: object
+          description: Additional task metadata
+    # TasksList
+    TasksListParams:
+      type: object
+      properties:
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+        offset:
+          type: integer
+          minimum: 0
+    TasksListResult:
+      type: array
+      items:
+        $ref: '#/components/schemas/Task'
+    # TasksCancel
+    TasksCancelParams:
+      type: object
+      required:
+        - taskId
+      properties:
+        taskId:
+          type: string
+          format: uuid
+    TasksCancelResult:
+      $ref: '#/components/schemas/Task'
+    # TasksFeedback
+    TasksFeedbackParams:
+      type: object
+      required:
+        - taskId
+        - feedback
+      properties:
+        taskId:
+          type: string
+          format: uuid
+        feedback:
+          type: string
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        metadata:
+          type: object
+    TasksFeedbackResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+    # ContextsList
+    ContextsListParams:
+      type: object
+      properties:
+        length:
+          type: integer
+          minimum: 1
+          maximum: 100
+    ContextsListResult:
+      type: array
+      items:
+        type: object
+        description: Conversation context object
+    # ContextsClear
+    ContextsClearParams:
+      type: object
+      required:
+        - contextId
+      properties:
+        contextId:
+          type: string
+          format: uuid
+    ContextsClearResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+
+    # ----- Agent Card -----
+    AgentCard:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        url:
+          type: string
+        version:
+          type: string
+        protocolVersion:
+          type: string
+        skills:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              documentationPath:
+                type: string
+        capabilities:
+          type: object
+          properties:
+            extensions:
+              type: array
+              items:
+                type: object
+            pushNotifications:
+              type: boolean
+            streaming:
+              type: boolean
+        kind:
+          type: string
+        numHistorySessions:
+          type: integer
+        extraData:
+          type: object
+        debugMode:
+          type: boolean
+        debugLevel:
+          type: integer
+        monitoring:
+          type: boolean
+        telemetry:
+          type: boolean
+        agentTrust:
+          type: string
+        defaultInputModes:
+          type: array
+          items:
+            type: string
+        defaultOutputModes:
+          type: array
+          items:
+            type: string
+      example:
+        id: 'abc123-def456-ghi789'
+        name: 'share-investment-agent'
+        description: 'Multi-agent system for comprehensive stock investment analysis of Chinese stocks. Coordinates 11 specialized agents to provide technical, fundamental, sentiment, valuation, and portfolio management recommendations.'
+        url: 'http://127.0.0.1:3774'
+        version: '1.0.0'
+        protocolVersion: '1.0.0'
+        skills:
+          - id: 'share-investment-v1'
+            name: 'share-investment'
+            documentationPath: 'http://127.0.0.1:3774/agent/skills/share-investment-v1'
+        capabilities:
+          extensions:
+            - uri: 'did:bindu:paras_at_getbindu_com:share-investment-agent:abc123'
+              description: 'DID-based identity for share-investment-agent'
+              required: false
+              params:
+                author: 'paras@getbindu.com'
+                agent_name: 'share-investment-agent'
+                agent_id: 'abc123'
+          pushNotifications: false
+          streaming: false
+        kind: 'agent'
+        numHistorySessions: 5
+        extraData:
+          created: 1771960617
+          server_info: 'bindu Agent Server'
+        debugMode: true
+        debugLevel: 2
+        monitoring: false
+        telemetry: true
+        agentTrust: 'low'
+        defaultInputModes: ['text/plain', 'application/json']
+        defaultOutputModes: ['text/plain', 'application/json']
+
+    # ----- DID Document -----
+    DidDocument:
+      type: object
+      properties:
+        '@context':
+          type: array
+          items:
+            type: string
+        id:
+          type: string
+        created:
+          type: string
+          format: date-time
+        authentication:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              type:
+                type: string
+              controller:
+                type: string
+              publicKeyBase58:
+                type: string
+      example:
+        '@context':
+          - 'https://www.w3.org/ns/did/v1'
+          - 'https://getbindu.com/ns/v1'
+        id: 'did:bindu:paras_at_getbindu_com:share-investment-agent:abc123'
+        created: '2026-03-13T00:00:00.000000+00:00'
+        authentication:
+          - id: 'did:bindu:paras_at_getbindu_com:share-investment-agent:abc123#key-1'
+            type: 'Ed25519VerificationKey2020'
+            controller: 'did:bindu:paras_at_getbindu_com:share-investment-agent:abc123'
+            publicKeyBase58: 'G5GArDaptfioimLdNbMgCKCvxndXhpcS6VUkRFEds12B'
+
+    # ----- Skills -----
+    SkillSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        version:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        input_modes:
+          type: array
+          items:
+            type: string
+        output_modes:
+          type: array
+          items:
+            type: string
+        examples:
+          type: array
+          items:
+            type: string
+        documentation_path:
+          type: string
+      example:
+        id: 'share-investment-v1'
+        name: 'share-investment'
+        description: |-
+          Multi-agent system for comprehensive stock investment analysis of Chinese stocks.
+          Coordinates 11 specialized agents to provide technical, fundamental, sentiment, valuation, and portfolio management recommendations.
+        version: '1.0.0'
+        tags: ['stock-analysis', 'investment-research', 'technical-analysis', 'fundamental-analysis', 'portfolio-management']
+        input_modes: ['text/plain', 'application/json']
+        output_modes: ['text/plain', 'application/json']
+        examples:
+          - 'Analyze Ping An Bank (000001) for investment'
+          - 'Provide technical and fundamental analysis for stock 000001'
+          - 'Should I buy, hold, or sell Ping An Bank with full analysis including debate'
+        documentation_path: 'share_investment_agent/skills/share-investment/skill.yaml'
+
+    SkillDetail:
+      allOf:
+        - $ref: '#/components/schemas/SkillSummary'
+        - type: object
+          properties:
+            author:
+              type: string
+            capabilities_detail:
+              type: object
+            requirements:
+              type: object
+            performance:
+              type: object
+            allowed_tools:
+              type: array
+              items:
+                type: string
+            documentation:
+              type: object
+            assessment:
+              type: object
+            has_documentation:
+              type: boolean
+
+    # ----- Negotiation -----
+    NegotiationRequest:
+      type: object
+      required:
+        - task_summary
+      properties:
+        task_summary:
+          type: string
+          maxLength: 10000
+        task_details:
+          type: string
+        input_mime_types:
+          type: array
+          items:
+            type: string
+        output_mime_types:
+          type: array
+          items:
+            type: string
+        max_latency_ms:
+          type: integer
+        max_cost_amount:
+          type: number
+          format: float
+        required_tools:
+          type: array
+          items:
+            type: string
+        forbidden_tools:
+          type: array
+          items:
+            type: string
+        min_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        weights:
+          type: object
+    NegotiationResponse:
+      type: object
+      properties:
+        accepted:
+          type: boolean
+        score:
+          type: number
+          format: float
+        confidence:
+          type: number
+          format: float
+        rejection_reason:
+          type: string
+        queue_depth:
+          type: integer
+        subscores:
+          type: object
+
+    # ----- Payment -----
+    PaymentSession:
+      type: object
+      properties:
+        sessionId:
+          type: string
+        requirements:
+          type: object
+        url:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+    PaymentStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [pending, completed, failed]
+        paymentToken:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+
+    # ----- Health -----
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok, error]
+        ready:
+          type: boolean
+        uptime_seconds:
+          type: number
+        version:
+          type: string
+        health:
+          type: string
+        runtime:
+          type: object
+        application:
+          type: object
+        system:
+          type: object

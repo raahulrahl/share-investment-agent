@@ -223,9 +223,6 @@ class MarketDataAcquisition:
                 return {"error": "Insufficient data for technical indicators"}
 
             closes = [p["close"] for p in historical_prices]
-            highs = [p["high"] for p in historical_prices]
-            lows = [p["low"] for p in historical_prices]
-            volumes = [p["volume"] for p in historical_prices]
 
             # Calculate RSI (14-day)
             rsi = self._calculate_rsi(closes, 14)
